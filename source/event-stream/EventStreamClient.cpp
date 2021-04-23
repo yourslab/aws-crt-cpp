@@ -10,6 +10,7 @@
 #include <aws/crt/auth/Sigv4Signing.h>
 
 #include <algorithm>
+#include <iostream>
 
 namespace Aws
 {
@@ -302,9 +303,19 @@ namespace Aws
             {
                 if(m_allocator)
                 {
-                    // TODO: Since we're copying the headers to another list, we're deallocating twice so need to fix that.
-                    //ByteBufDelete(valueByteBuf);
+                    ByteBufDelete(valueByteBuf);
                 }
+            }
+
+            /* Keep in mind that the copy constructors must not copy the allocator since we free the ByteBuf only if an allocator exists. */
+            EventStreamHeader::EventStreamHeader(const EventStreamHeader &rhs) noexcept
+            : m_allocator(), m_underlyingHandle(rhs.m_underlyingHandle), valueByteBuf(rhs.valueByteBuf)
+            {
+            }
+
+            EventStreamHeader::EventStreamHeader(EventStreamHeader &&rhs) noexcept
+            : m_allocator(), m_underlyingHandle(rhs.m_underlyingHandle), valueByteBuf(rhs.valueByteBuf)
+            {
             }
 
             void EventstreamRpcConnection::s_onConnectionSetup(

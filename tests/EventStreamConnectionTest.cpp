@@ -37,7 +37,7 @@ static int s_TestEventStreamConnect(struct aws_allocator *allocator, void *ctx)
         clientBootstrap.EnableBlockingShutdown();
         auto messageAmender = [&](void) -> Eventstream::MessageAmendment {
             Aws::Crt::List<Eventstream::EventStreamHeader> authHeaders;
-            authHeaders.push_back(Eventstream::EventStreamHeader(String("client-name"), String("accepted.testy_mc_testerson"), g_allocator));
+            authHeaders.push_back(Eventstream::EventStreamHeader(String("client-name"), String("accepted.testy_mc_testerson"), allocator));
             Eventstream::MessageAmendment messageAmendInfo(authHeaders);
             return messageAmendInfo;
         };
