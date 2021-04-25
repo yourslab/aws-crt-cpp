@@ -35,17 +35,27 @@ static int s_TestEventStreamConnect(struct aws_allocator *allocator, void *ctx)
         Io::ClientBootstrap clientBootstrap(eventLoopGroup, defaultHostResolver, allocator);
         ASSERT_TRUE(clientBootstrap);
         clientBootstrap.EnableBlockingShutdown();
-        auto messageAmender = [&](void) -> Eventstream::MessageAmendment {
-            Aws::Crt::List<Eventstream::EventStreamHeader> authHeaders;
-            authHeaders.push_back(Eventstream::EventStreamHeader(String("client-name"), String("accepted.testy_mc_testerson"), allocator));
-            Eventstream::MessageAmendment messageAmendInfo(authHeaders);
-            return messageAmendInfo;
+        Aws::Crt::List<Eventstream::EventStreamHeader> authHeaders;
+        authHeaders.push_back(Eventstream::EventStreamHeader(String("client-name"), String("accepted.testy_mc_testerson"), allocator));
+        Eventstream::MessageAmendment connectionAmendment(authHeaders);
+        auto messageAmender = [&](void) -> Eventstream::MessageAmendment& {
+            return connectionAmendment;
         };
         std::shared_ptr<Eventstream::EventstreamRpcConnection> connection(nullptr);
+        bool errorOccured = true;
+        bool connectionShutdown = false;
+
+        std::condition_variable semaphore;
+        std::mutex semaphoreLock;
 
         auto onConnect = [&](const std::shared_ptr<Eventstream::EventstreamRpcConnection> &newConnection) {
-            connection = newConnection;
+            std::lock_guard<std::mutex> lockGuard(semaphoreLock);
+
             std::cout << "Connected" << std::endl;
+
+            connection = newConnection;
+
+            semaphore.notify_one();
         };
 
         auto onDisconnect = [&](const std::shared_ptr<Eventstream::EventstreamRpcConnection> &newConnection,
@@ -66,7 +76,10 @@ static int s_TestEventStreamConnect(struct aws_allocator *allocator, void *ctx)
         options.OnErrorCallback = nullptr;
         options.OnPingCallback = nullptr;
 
+        std::unique_lock<std::mutex> semaphoreULock(semaphoreLock);
         ASSERT_TRUE(Eventstream::EventstreamRpcConnection::CreateConnection(options, allocator));
+        semaphore.wait(semaphoreULock, [&]() { return connection; });
+        ASSERT_TRUE(connection);
     }
 
     return AWS_OP_SUCCESS;

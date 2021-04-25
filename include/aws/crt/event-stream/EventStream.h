@@ -72,13 +72,13 @@ namespace Aws
 
             using OnPing = std::function<void(Crt::List<EventStreamHeader> headers, ByteBuf payload)>;
 
-            using ConnectMessageAmender = std::function<MessageAmendment(void)>;
+            using ConnectMessageAmender = std::function<MessageAmendment&(void)>;
 
             class AWS_CRT_CPP_API EventStreamHeader final
             {
                 public:
-                    EventStreamHeader(const EventStreamHeader &rhs) = default;
-                    EventStreamHeader(EventStreamHeader &&rhs) = default;
+                    EventStreamHeader(const EventStreamHeader &lhs) noexcept;
+                    EventStreamHeader(EventStreamHeader &&rhs) noexcept;
                     ~EventStreamHeader() noexcept;
                     EventStreamHeader(const struct aws_event_stream_header_value_pair& header);
                     EventStreamHeader(const String& name, bool value);
@@ -92,7 +92,7 @@ namespace Aws
                     EventStreamHeader(const String& name, Crt::UUID value);
 
                     HeaderType GetHeaderType();
-                    String& GetHeaderName();
+                    String GetHeaderName() noexcept;
                     void SetHeaderName(String&);
 
                     bool GetValueAsBoolean(bool&);
@@ -113,28 +113,29 @@ namespace Aws
                     void SetValue(ByteBuf value);
                     void SetValue(Crt::UUID value);
 
-                    struct aws_event_stream_header_value_pair * GetUnderlyingHandle();
+                    const struct aws_event_stream_header_value_pair * GetUnderlyingHandle() const;
 
                     bool operator==(const EventStreamHeader &other) const noexcept;
                 private:
                     Allocator *m_allocator;
+                    ByteBuf m_valueByteBuf;
                     struct aws_event_stream_header_value_pair m_underlyingHandle;
-                    ByteBuf valueByteBuf;
             };
 
             class AWS_CRT_CPP_API MessageAmendment final
             {
                 public:
                     MessageAmendment() = default;
-                    MessageAmendment(const MessageAmendment &rhs) = default;
+                    MessageAmendment(const MessageAmendment &lhs) = default;
                     MessageAmendment(MessageAmendment &&rhs) = default;
-                    MessageAmendment(const Crt::Optional<Crt::List<EventStreamHeader> >& headers, const Crt::Optional<ByteBuf>& payload) noexcept;
+                    MessageAmendment(const Crt::List<EventStreamHeader>& headers, Crt::Optional<ByteBuf>& payload) noexcept;
                     MessageAmendment(const Crt::List<EventStreamHeader>& headers) noexcept;
                     MessageAmendment(const ByteBuf& payload) noexcept;
-                    Crt::Optional<Crt::List<EventStreamHeader> > &GetHeaders() noexcept;
+                    Crt::List<EventStreamHeader> &GetHeaders() noexcept;
+                    void AddHeader(EventStreamHeader&& header) noexcept;
                     Crt::Optional<ByteBuf> &GetPayload() noexcept;
                 private:
-                    Crt::Optional<Crt::List<EventStreamHeader> > m_headers;
+                    Crt::List<EventStreamHeader> m_headers;
                     Crt::Optional<ByteBuf> m_payload;
             };
 
@@ -180,13 +181,13 @@ namespace Aws
                     ) noexcept;
 
                     void SendPing(
-                        Crt::Optional<Crt::List<EventStreamHeader> >& headers,
+                        const Crt::List<EventStreamHeader>& headers,
                         Crt::Optional<ByteBuf>& payload,
                         OnMessageFlush onMessageFlushCallback
                     ) noexcept;
 
                     void SendPingResponse(
-                        Crt::Optional<Crt::List<EventStreamHeader> >& headers,
+                        const Crt::List<EventStreamHeader>& headers,
                         Crt::Optional<ByteBuf>& payload,
                         OnMessageFlush onMessageFlushCallback
                     ) noexcept;
@@ -217,10 +218,11 @@ namespace Aws
                         DISCONNECTING,
                     };
                     Allocator *m_allocator;
-                    ClientState clientState;
+                    ClientState m_clientState;
+                    Crt::List<EventStreamHeader> m_defaultConnectHeaders;
 
                     void SendProtocolMessage(
-                        Crt::Optional<Crt::List<EventStreamHeader> >& headers,
+                        const Crt::List<EventStreamHeader>& headers,
                         Crt::Optional<ByteBuf>& payload,
                         MessageType messageType,
                         uint32_t flags,
@@ -244,11 +246,11 @@ namespace Aws
                     );
 
                     static void s_protocolMessageCallback(
-                    int errorCode, void *userData  
+                    int errorCode, void *userData
                     ) noexcept;
                     static void s_sendProtocolMessage(
                         std::weak_ptr<EventstreamRpcConnection> connection,
-                        Crt::Optional<Crt::List<EventStreamHeader> >& headers,
+                        const Crt::List<EventStreamHeader>& headers,
                         Crt::Optional<ByteBuf>& payload,
                         MessageType messageType,
                         uint32_t flags,
@@ -257,14 +259,14 @@ namespace Aws
 
                     static void s_sendPing(
                         std::weak_ptr<EventstreamRpcConnection> connection,
-                        Crt::Optional<Crt::List<EventStreamHeader> >& headers,
+                        const Crt::List<EventStreamHeader>& headers,
                         Crt::Optional<ByteBuf>& payload,
                         OnMessageFlush onMessageFlushCallback
                     ) noexcept;
 
                     static void s_sendPingResponse(
                         std::weak_ptr<EventstreamRpcConnection> connection,
-                        Crt::Optional<Crt::List<EventStreamHeader> >& headers,
+                        const Crt::List<EventStreamHeader>& headers,
                         Crt::Optional<ByteBuf>& payload,
                         OnMessageFlush onMessageFlushCallback
                     ) noexcept;

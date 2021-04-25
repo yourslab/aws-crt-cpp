@@ -61,6 +61,11 @@ if (NOT CMAKE_CXX_STANDARD)
     set(CMAKE_CXX_STANDARD 11)
 endif()
 
+add_compile_options(
+  "-Wall" "-Wpedantic" "-fexceptions"
+  "$<$<CONFIG:DEBUG>:-O0;-g3;-ggdb>"
+)
+
 if (NOT CMAKE_BUILD_TYPE)
     # setting this breaks C++ builds in visualc++, so don't do it.
     if (NOT WIN32)
