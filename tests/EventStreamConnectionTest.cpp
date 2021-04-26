@@ -61,7 +61,15 @@ static int s_TestEventStreamConnect(struct aws_allocator *allocator, void *ctx)
         auto onDisconnect = [&](const std::shared_ptr<Eventstream::EventstreamRpcConnection> &newConnection,
                                 int errorCode) 
         {
+            std::lock_guard<std::mutex> lockGuard(semaphoreLock);
+
             std::cout << "Disconnected" << std::endl;
+
+            if(errorCode) errorOccured = true; else connectionShutdown = true;
+
+            connection = newConnection;
+
+            semaphore.notify_one();
         };
 
         String hostName = "127.0.0.1";
@@ -76,10 +84,13 @@ static int s_TestEventStreamConnect(struct aws_allocator *allocator, void *ctx)
         options.OnErrorCallback = nullptr;
         options.OnPingCallback = nullptr;
 
-        std::unique_lock<std::mutex> semaphoreULock(semaphoreLock);
-        ASSERT_TRUE(Eventstream::EventstreamRpcConnection::CreateConnection(options, allocator));
-        semaphore.wait(semaphoreULock, [&]() { return connection; });
-        ASSERT_TRUE(connection);
+        {
+            std::unique_lock<std::mutex> semaphoreULock(semaphoreLock);
+            ASSERT_TRUE(Eventstream::EventstreamRpcConnection::CreateConnection(options, allocator));
+            semaphore.wait(semaphoreULock, [&]() { return connection; });
+            ASSERT_TRUE(connection);
+            connection->Close();
+        }
     }
 
     return AWS_OP_SUCCESS;

@@ -51,10 +51,9 @@ namespace Aws
             using OnMessageFlush = std::function<void(int errorCode)>;
 
             /**
-             * Invoked upon connection setup, whether it was successful or not. If the connection was
-             * successfully established, `connection` will be valid and errorCode will be AWS_ERROR_SUCCESS.
-             * Upon an error, `connection` will not be valid, and errorCode will contain the cause of the connection
-             * failure.
+             * Invoked upon receiving a `CONNECT_ACK` from the server with the `CONNECTION_ACCEPTED` flag.
+             * If connection establishment fails, this callback will not be called. Therefore, `connection` will always
+             * be valid whenever this is invoked.
              */
             using OnConnect = std::function<void(const std::shared_ptr<EventstreamRpcConnection> &connection)>;
 
@@ -70,7 +69,7 @@ namespace Aws
 
             using OnError = std::function<bool(int errorCode)>;
 
-            using OnPing = std::function<void(Crt::List<EventStreamHeader> headers, ByteBuf payload)>;
+            using OnPing = std::function<void(const Crt::List<EventStreamHeader>& headers, const Crt::Optional<ByteBuf>& payload)>;
 
             using ConnectMessageAmender = std::function<MessageAmendment&(void)>;
 
@@ -134,6 +133,7 @@ namespace Aws
                     Crt::List<EventStreamHeader> &GetHeaders() noexcept;
                     void AddHeader(EventStreamHeader&& header) noexcept;
                     Crt::Optional<ByteBuf> &GetPayload() noexcept;
+                    void SetPayload(const Crt::Optional<ByteBuf> & payload) noexcept;
                 private:
                     Crt::List<EventStreamHeader> m_headers;
                     Crt::Optional<ByteBuf> m_payload;
